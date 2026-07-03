@@ -19,6 +19,7 @@
 - Create `src-tauri/Cargo.toml`, `src-tauri/build.rs`, `src-tauri/tauri.conf.json`: Tauri/Rust project and bundler config.
 - Create `src-tauri/src/main.rs`, `src-tauri/src/lib.rs`: Tauri entrypoint and command registration.
 - Create `src-tauri/src/wallpaper.rs`: testable wallpaper domain model, image validation, random pool selection.
+- Create `src-tauri/src/bundled.rs`: testable materialization of embedded bundled wallpapers to a real filesystem directory.
 - Create `src-tauri/src/platform.rs`: Windows wallpaper API boundary.
 - Keep `res/1.png`, `res/2.png`, `res/3.png`: bundled wallpaper resources.
 
@@ -72,7 +73,7 @@ Create minimal Vue and Tauri files. `package.json` must include:
 }
 ```
 
-`src-tauri/tauri.conf.json` must set `frontendDist` to `../dist`, `devUrl` to `http://127.0.0.1:1420`, and bundle `../res/1.png`, `../res/2.png`, `../res/3.png` as resources.
+`src-tauri/tauri.conf.json` must set `frontendDist` to `../dist`, `devUrl` to `http://127.0.0.1:1420`, and keep `bundle.active` false so `npm run tauri build` reliably emits the release exe without requiring an installer toolchain download. Rust embeds `res/1.png`, `res/2.png`, and `res/3.png` with `include_bytes!`.
 
 - [ ] **Step 2: Install frontend dependencies**
 
@@ -318,14 +319,14 @@ Expected: Vue/TypeScript/Vite build passes.
 
 Run: `npm run tauri build`
 
-Expected: Tauri creates Windows release artifacts under `src-tauri/target/release/bundle/`.
+Expected: Tauri creates `src-tauri/target/release/wallpaper-switcher.exe`.
 
 - [ ] **Step 4: Locate exe artifacts**
 
 Run:
 
 ```powershell
-Get-ChildItem -Recurse src-tauri\target\release\bundle -Include *.exe | Select-Object FullName,Length
+Get-ChildItem src-tauri\target\release -Filter *.exe | Select-Object FullName,Length
 ```
 
 Expected: at least one `.exe` path is printed.

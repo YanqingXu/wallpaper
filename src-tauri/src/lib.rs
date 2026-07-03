@@ -1,11 +1,27 @@
+pub mod bundled;
 mod platform;
 pub mod wallpaper;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager, Runtime, State};
+use bundled::{materialize_bundled_files, BundledWallpaper};
 use wallpaper::{validate_existing_image_path, WallpaperItem, WallpaperPool};
+
+const BUNDLED_WALLPAPERS: &[BundledWallpaper] = &[
+    BundledWallpaper {
+        file_name: "1.png",
+        bytes: include_bytes!("../../res/1.png"),
+    },
+    BundledWallpaper {
+        file_name: "2.png",
+        bytes: include_bytes!("../../res/2.png"),
+    },
+    BundledWallpaper {
+        file_name: "3.png",
+        bytes: include_bytes!("../../res/3.png"),
+    },
+];
 
 pub struct AppState {
     pool: Mutex<WallpaperPool>,
@@ -61,8 +77,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            let bundled_paths = bundled_wallpaper_paths(app.handle()).map_err(|error| {
+                std::io::Error::new(std::io::ErrorKind::Other, error)
+            })?;
             app.manage(AppState {
-                pool: Mutex::new(WallpaperPool::new(bundled_wallpaper_paths(app.handle()))),
+                pool: Mutex::new(WallpaperPool::new(bundled_paths)),
             });
             Ok(())
         })
@@ -76,21 +95,12 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-fn bundled_wallpaper_paths<R: Runtime>(app: &AppHandle<R>) -> Vec<PathBuf> {
-    ["res/1.png", "res/2.png", "res/3.png"]
-        .into_iter()
-        .map(|relative| resolve_resource_or_dev_path(app, relative))
-        .collect()
-}
+fn bundled_wallpaper_paths<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<PathBuf>, String> {
+    let target_dir = app
+        .path()
+        .app_cache_dir()
+        .unwrap_or_else(|_| std::env::temp_dir().join("wallpaper-switcher"))
+        .join("bundled-wallpapers");
 
-fn resolve_resource_or_dev_path<R: Runtime>(app: &AppHandle<R>, relative: &str) -> PathBuf {
-    if let Ok(path) = app.path().resolve(relative, BaseDirectory::Resource) {
-        if path.exists() {
-            return path;
-        }
-    }
-
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join(relative)
+    materialize_bundled_files(&target_dir, BUNDLED_WALLPAPERS)
 }

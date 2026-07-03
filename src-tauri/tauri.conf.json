@@ -25,8 +25,7 @@
     }
   },
   "bundle": {
-    "active": true,
-    "targets": ["nsis"],
+    "active": false,
     "resources": {
       "../res/1.png": "res/1.png",
       "../res/2.png": "res/2.png",

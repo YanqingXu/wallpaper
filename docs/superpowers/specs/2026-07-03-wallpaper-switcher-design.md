@@ -22,7 +22,7 @@
 
 前端使用 Vue 3 + Vite 构建单页控制面板。页面包含内置壁纸缩略图、候选壁纸数量、随机切换按钮、选择本地图片按钮和状态提示区域。
 
-后端使用 Tauri 2 command 暴露桌面能力。Rust 维护一个进程内状态对象，记录用户本次运行期间添加的图片路径。内置图片通过 Tauri resource 机制随应用打包，运行时解析为可被 Windows API 访问的真实路径。
+后端使用 Tauri 2 command 暴露桌面能力。Rust 维护一个进程内状态对象，记录用户本次运行期间添加的图片路径。内置图片编译进 Rust 二进制，启动时释放到应用缓存目录，形成可被 Windows API 访问的真实路径。
 
 Windows 壁纸设置使用 `SystemParametersInfoW`，动作参数为 `SPI_SETDESKWALLPAPER`，并使用更新用户配置与通知系统广播的标志。
 
@@ -54,10 +54,10 @@ Windows 壁纸设置使用 `SystemParametersInfoW`，动作参数为 `SPI_SETDES
 
 ## 测试策略
 
-Rust 单元测试覆盖候选池合并、图片扩展名校验、随机选择非空结果和空池错误。Windows API 设置函数通过小边界封装隔离，核心列表和校验逻辑可在不修改真实桌面壁纸的情况下测试。
+Rust 单元测试覆盖候选池合并、图片扩展名校验、随机选择非空结果、空池错误和内置图片释放。Windows API 设置函数通过小边界封装隔离，核心列表和校验逻辑可在不修改真实桌面壁纸的情况下测试。
 
 前端通过构建验证和手动运行验证覆盖基础流程：启动应用、显示三张内置壁纸、添加本地图片、随机切换、指定设置、错误提示。
 
 ## 打包
 
-使用 Tauri 2 的 Windows 打包能力。开发运行命令为 `npm run tauri dev`，构建命令为 `npm run tauri build`。构建产物位于 `src-tauri/target/release/bundle/` 下，Windows 环境会生成 exe 或安装包相关产物，具体格式由 Tauri bundler 配置决定。
+使用 Tauri 2 的 Windows release 构建能力。开发运行命令为 `npm run tauri dev`，构建命令为 `npm run tauri build`。构建产物为 `src-tauri/target/release/wallpaper-switcher.exe`。内置壁纸已编译进 exe，首次运行时会释放到应用缓存目录。
