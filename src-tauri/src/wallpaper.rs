@@ -2,7 +2,7 @@ use rand::Rng;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WallpaperSource {
     Bundled,
@@ -23,6 +23,16 @@ pub enum WallpaperError {
     EmptyPool,
     FileMissing,
     UnsupportedImageType,
+}
+
+impl WallpaperError {
+    pub fn user_message(&self) -> &'static str {
+        match self {
+            WallpaperError::EmptyPool => "没有可用壁纸",
+            WallpaperError::FileMissing => "图片文件不存在",
+            WallpaperError::UnsupportedImageType => "仅支持 png、jpg、jpeg、bmp",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -72,6 +82,17 @@ impl WallpaperPool {
         Ok(items[index].clone())
     }
 
+    pub fn add_user_wallpaper(&mut self, path: &Path) -> Result<Vec<WallpaperItem>, WallpaperError> {
+        validate_existing_image_path(path)?;
+        let path = path.to_path_buf();
+
+        if !self.user_paths.iter().any(|existing| existing == &path) {
+            self.user_paths.push(path);
+        }
+
+        Ok(self.all())
+    }
+
     #[cfg(test)]
     fn add_existing_user_path_for_test(&mut self, path: PathBuf) {
         self.user_paths.push(path);
@@ -88,6 +109,18 @@ pub fn is_supported_image_path(path: &Path) -> bool {
             )
         })
         .unwrap_or(false)
+}
+
+pub fn validate_existing_image_path(path: &Path) -> Result<(), WallpaperError> {
+    if !path.exists() {
+        return Err(WallpaperError::FileMissing);
+    }
+
+    if !is_supported_image_path(path) {
+        return Err(WallpaperError::UnsupportedImageType);
+    }
+
+    Ok(())
 }
 
 fn wallpaper_item(index: usize, path: &Path, source: WallpaperSource) -> WallpaperItem {
@@ -142,5 +175,44 @@ mod tests {
         let err = pool.random().unwrap_err();
 
         assert_eq!(err, WallpaperError::EmptyPool);
+    }
+
+    #[test]
+    fn add_user_wallpaper_rejects_missing_file() {
+        let mut pool = WallpaperPool::new(Vec::new());
+
+        let err = pool
+            .add_user_wallpaper(Path::new("missing.png"))
+            .unwrap_err();
+
+        assert_eq!(err, WallpaperError::FileMissing);
+    }
+
+    #[test]
+    fn add_user_wallpaper_rejects_unsupported_extension() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let bad_path = file.path().with_extension("gif");
+        std::fs::write(&bad_path, b"fake").unwrap();
+        let mut pool = WallpaperPool::new(Vec::new());
+
+        let err = pool.add_user_wallpaper(&bad_path).unwrap_err();
+
+        assert_eq!(err, WallpaperError::UnsupportedImageType);
+        std::fs::remove_file(bad_path).unwrap();
+    }
+
+    #[test]
+    fn add_user_wallpaper_accepts_supported_file_for_session_pool() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let image_path = file.path().with_extension("jpg");
+        std::fs::write(&image_path, b"fake").unwrap();
+        let mut pool = WallpaperPool::new(Vec::new());
+
+        let all = pool.add_user_wallpaper(&image_path).unwrap();
+
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].source, WallpaperSource::User);
+        assert_eq!(all[0].path, image_path.to_string_lossy());
+        std::fs::remove_file(image_path).unwrap();
     }
 }
