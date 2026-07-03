@@ -1,0 +1,22 @@
+[package]
+name = "wallpaper-switcher"
+version = "0.1.0"
+description = "Random desktop wallpaper switcher"
+authors = ["Codex"]
+edition = "2021"
+
+[lib]
+name = "wallpaper_switcher_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "wallpaper-switcher"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+
