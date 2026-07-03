@@ -126,7 +126,7 @@ fn pool_combines_bundled_and_user_wallpapers() {
 #[test]
 fn random_from_empty_pool_returns_error() {
     let pool = WallpaperPool::new(Vec::new());
-    let err = pool.random_with_rng(&mut rand::rngs::mock::StepRng::new(1, 1)).unwrap_err();
+    let err = pool.random().unwrap_err();
     assert_eq!(err, WallpaperError::EmptyPool);
 }
 ```
